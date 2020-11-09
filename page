@@ -1,0 +1,115 @@
+Get started
+Open in app
+Vidya Sonawane
+10 Followers
+·
+About
+Follow
+Responses
+
+What are your thoughts?
+Cancel
+Respond
+There are currently no responses for this story.
+Be the first to respond.
+Install and configure Elasticsearch Curator to delete the old indices.
+Vidya Sonawane
+Vidya Sonawane
+Feb 19·4 min read
+
+ELK (Elasticsearch, Logstash, Kibana) is a proven standard for centralized logging, after setting up the ELK stack, a huge number of logs can be written to the Elasticsearch service periodically. This can throw the disk usage exceptions which leads to drastic performance reduction of Elasticsearch service and the loss of valuable log data.
+We need some mechanism in place to stop the Elasticsearch indices from growing endlessly. To achieve this, one can occasionally go to Kibana and delete the indices using GUI there, Why not automate the things? Elastic has provided a tool to curate or manage your Elasticsearch indices called Curator. One specific use case of the curator is applying a retention policy to your indices, deleting the indices that are older than a certain threshold.
+Image for post
+Curator
+We are going to install and configure the curator to delete the indices which are older than 7 days on ubuntu 18.04.
+Installing Curator
+A curator can be installed in various ways, you can find it here. Let’s download the DEB package, using
+sudo wget https://packages.elastic.co/curator/5/debian9/pool/main/e/elasticsearch-curator/elasticsearch-curator_5.5.4_amd64.deb
+2. After downloading, install it using the following command:
+sudo dpkg -i elasticsearch-curator_5.5.4_amd64.deb
+Curator will now be installed at /opt/elasticsearch-curator location.
+Configuring Curator
+According to the documentation, the default location of the configuration file should be ~/.curator/curator.yml. Let’s create a hidden directory in the home directory, using
+sudo mkdir /home/username/.curator
+2. Then create a configuration file named curator.yml in .curator directory,
+sudo nano /home/username/.curator/curator.yml
+Place the following configuration in curator.yml file
+/home/username/.curator/curator.yml
+It is YAML configuration file which should start with three dash lines, and the two root keys must be client and logging.
+It tells curator to connect to Elasticsearch found on localhost (127.0.0.1) on port 9200 and write the basic log info in log.log file. If we don’t provide a path to the log file, the default value is empty, which will result in logging to the console.
+You can find detailed information about each field in curator.yml file here.
+3. Now, to delete the indices older than 7 days, we should tell curator what tasks it should perform. We do this using action files. Let’s create the action.yml file in /home/username/.curator directory.
+sudo nano /home/username/.curator/action.yml
+Place the following configuration in it,
+/home/username/.curator/action.yml
+This is also a YAML file which must contain actions as a root key. Each numbered action can contain the following keys:
+action: a task that curator should perform on elasticsearch indices.
+description: describes what action is supposed to do. It is an optional field.
+options: these are the settings used by actions.
+Depending on the indices and the filter strategy, an empty list may be presented to the action. This results in an error condition. To avoid such situations ignore_empty_list is set to True.
+If disable_action is set to True, Curator will ignore the current action. This may be useful for temporarily disabling actions in a large configuration file. The default value is False.
+4. filters: used to select only specific indices.
+To match all the indices starting with filebeat, we have selected the filtertype as ‘pattern’, value is ‘filebeat-’ and kind as ‘prefix’.
+To delete the indices older than 7 days, we should filter them according to their age.
+source is the field which is used to derive the index age. Here, we are using the date format from the name of the index, hence source is ‘name’.
+Using name as the source tells Curator to look for a timestring within the index name.
+Running the curator
+We can test the curator with — dry-run argument. It does not perform the actions, only it will log what curator would do after running it without — dry-run argument.
+sudo curator --config /home/username/.curator/curator.yml --dry-run /home/username/.curator/action.yml
+Check the logs to see the indices older than 7 days would have been deleted in /home/username/.curator/log.log file using
+nano /home/username/.curator/log.log
+If you have kept the logfile key in curator.yml file default or empty then logs will get printed to the console.
+After passing all checks, Let’s make a cronjob to run the curator. I am setting it daily.
+Create curator.sh file in /etc/cron.daily/ directory.
+sudo nano /etc/cron.daily/curator.sh
+3. And add the following content in it,
+#!/bin/sh
+/opt/elasticsearch-curator/curator --config /home/username/.curator/curator.yml /home/username/.curator/action.yml
+4. Now, Add the actual cronjob.
+sudo crontab -e
+5. Append the following at the end of the file.
+0 5 * * * /bin/bash /etc/cron.daily/curator.sh
+This will run the curator.sh script every day at 5 am.
+In this way, we have automated the day-to-day management of our Elasticsearch indices using curator!
+105
+
+
+Elasticsearch
+Curator
+Crontab
+Log Retention
+Ubuntu
+More from Vidya Sonawane
+Follow
+Passionate Software Engineer, Student Forever !
+More From Medium
+Get Komoot tour data without API
+Jakob S in Python In Plain English
+
+Keys! What are they good for?
+Emily Fortuna in Flutter
+
+5 Ways to Find the Index of a Substring in Python
+Indhumathy Chelliah in Better Programming
+
+Learn basic HTML in 3 minutes!
+Nitin Sharma in Dev Genius
+
+How to Develop an ASP.NET Core Application Using Visual Studio Code
+Rajeshwari Pandinagarajan in Syncfusion
+
+Notes to Myself on Software Rewriting
+Huseyin Polat Yuruk in Better Programming
+
+Data Structures: The Linked List
+Ian Laird
+
+Programming Languages: Origins in Natural Language
+Ben Miriello in Better Programming
+
+About
+Help
+Legal
+Get the Medium app
+A button that says 'Download on the App Store', and if clicked it will lead you to the iOS App store
+A button that says 'Get it on, Google Play', and if clicked it will lead you to the Google Play store
